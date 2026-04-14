@@ -1,0 +1,170 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01//EN" "http://www.w3.org/TR/html4/strict.dtd">
+<html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+  <meta http-equiv="Content-Style-Type" content="text/css">
+  <title></title>
+  <meta name="Generator" content="Cocoa HTML Writer">
+  <meta name="CocoaVersion" content="2685.4">
+  <style type="text/css">
+    p.p1 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000}
+    p.p2 {margin: 0.0px 0.0px 0.0px 0.0px; font: 12.0px Times; -webkit-text-stroke: #000000; min-height: 14.0px}
+    span.s1 {font-kerning: none}
+  </style>
+</head>
+<body>
+<p class="p1"><span class="s1">&lt;!DOCTYPE html&gt;</span></p>
+<p class="p1"><span class="s1">&lt;html lang="en"&gt;</span></p>
+<p class="p1"><span class="s1">&lt;head&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;meta charset="UTF-8"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;meta name="viewport" content="width=device-width, initial-scale=1.0"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;title&gt;Futures Risk Control Simulator&lt;/title&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://unpkg.com/react@18/umd/react.production.min.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://unpkg.com/@babel/standalone/babel.min.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://cdn.tailwindcss.com"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script src="https://unpkg.com/recharts/umd/Recharts.js"&gt;&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/head&gt;</span></p>
+<p class="p1"><span class="s1">&lt;body class="bg-gray-50 font-sans"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;div id="root"&gt;&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;script type="text/babel"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const { useState, useEffect, useRef } = React;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } = Recharts;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const Simulator = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [data, setData] = useState([{ time: 0, price: 0 }]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [params, setParams] = useState({ tp: 5, sl: -3, vol: 0.5, delay: 500 });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [status, setStatus] = useState('MONITORING'); // MONITORING, TRIGGERED, LIQUIDATED</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [results, setResults] = useState({ target: 0, actual: 0, slippage: 0 });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const [isRunning, setIsRunning] = useState(false);</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">            </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const timerRef = useRef(null);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const statusRef = useRef('MONITORING');</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const resetSim = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setIsRunning(false);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setData([{ time: 0, price: 0 }]);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setStatus('MONITORING');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>statusRef.current = 'MONITORING';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setResults({ target: 0, actual: 0, slippage: 0 });</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>if (timerRef.current) clearInterval(timerRef.current);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const runStep = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setData(prev =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const last = prev[prev.length - 1];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if (statusRef.current === 'LIQUIDATED' || prev.length &gt; 100) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>clearInterval(timerRef.current);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>setIsRunning(false);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>return prev;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// 模拟价格随机波动 (Brownian Motion)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const change = (Math.random() - 0.5) * params.vol;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const nextPrice = last.price + change;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>const nextTime = last.time + 1;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>// 检测边界触发</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if (statusRef.current === 'MONITORING') {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>if (nextPrice &gt;= params.tp || nextPrice &lt;= params.sl) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>const target = nextPrice &gt;= params.tp ? params.tp : params.sl;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>statusRef.current = 'TRIGGERED';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>setStatus('TRIGGERED');</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                            </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>// 模拟时延</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>setTimeout(() =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>statusRef.current = 'LIQUIDATED';</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>setStatus('LIQUIDATED');</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>}, params.delay);</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                            </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>setResults(res =&gt; ({ ...res, target: target.toFixed(2) }));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>if (statusRef.current === 'LIQUIDATED' &amp;&amp; results.actual === 0) {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>setResults(res =&gt; ({<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>...res,<span class="Apple-converted-space"> </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>actual: nextPrice.toFixed(2),</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>slippage: Math.abs(nextPrice - res.target).toFixed(2)</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>}));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>}</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>return [...prev, { time: nextTime, price: nextPrice }];</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>});</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>const startSim = () =&gt; {</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>resetSim();</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>setIsRunning(true);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>timerRef.current = setInterval(runStep, 100);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>return (</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;div class="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg border border-gray-200 mt-10"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;h1 class="text-2xl font-bold text-center mb-6 text-gray-800"&gt;Figure 2.1: Futures Risk Control Loop Simulator&lt;/h1&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                    </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>{/* 图表展示区 */}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div class="h-64 w-full mb-8 bg-gray-100 rounded p-2"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;ResponsiveContainer width="100%" height="100%"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;LineChart data={data}&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;CartesianGrid strokeDasharray="3 3" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;XAxis dataKey="time" hide /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;YAxis domain={['auto', 'auto']} label={{ value: 'P&amp;L %', angle: -90, position: 'insideLeft' }} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Tooltip /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;ReferenceLine y={params.tp} label="TP" stroke="#2563eb" strokeDasharray="5 5" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;ReferenceLine y={params.sl} label="SL" stroke="#4b5563" strokeDasharray="5 5" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                                </span>&lt;Line type="monotone" dataKey="price" stroke="#1f2937" dot={false} strokeWidth={2} isAnimationActive={false} /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;/LineChart&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/ResponsiveContainer&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>{/* 参数控制区 */}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div class="grid grid-cols-2 gap-6 mb-8"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;label class="block text-sm font-semibold text-gray-700"&gt;Take-Profit Level: {params.tp}%&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;input type="range" min="1" max="10" step="0.5" value={params.tp} onChange={e =&gt; setParams({...params, tp: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" /&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                            </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;label class="block text-sm font-semibold text-gray-700 mt-4"&gt;Stop-Loss Level: {params.sl}%&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;input type="range" min="-10" max="-1" step="0.5" value={params.sl} onChange={e =&gt; setParams({...params, sl: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;label class="block text-sm font-semibold text-gray-700"&gt;Volatility (Noise): {params.vol}&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;input type="range" min="0.1" max="2" step="0.1" value={params.vol} onChange={e =&gt; setParams({...params, vol: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" /&gt;</span></p>
+<p class="p2"><span class="s1"><span class="Apple-converted-space">                            </span></span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;label class="block text-sm font-semibold text-gray-700 mt-4"&gt;System Latency: {params.delay}ms&lt;/label&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;input type="range" min="0" max="2000" step="100" value={params.delay} onChange={e =&gt; setParams({...params, delay: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" /&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div class="flex gap-4 justify-center mb-8"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;button onClick={startSim} disabled={isRunning} class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 disabled:bg-gray-400"&gt;START SIMULATION&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;button onClick={resetSim} class="px-6 py-2 bg-gray-600 text-white font-bold rounded hover:bg-gray-700"&gt;RESET&lt;/button&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>{/* 结果分析区 */}</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;div class="bg-blue-50 p-4 rounded-lg grid grid-cols-3 text-center border border-blue-100"&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p class="text-xs text-blue-600 font-bold uppercase"&gt;Status&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p class="text-lg font-mono font-bold text-gray-800"&gt;{status}&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p class="text-xs text-blue-600 font-bold uppercase"&gt;Target Price&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p class="text-lg font-mono font-bold text-gray-800"&gt;{results.target}%&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p class="text-xs text-blue-600 font-bold uppercase"&gt;Actual Fill / Slippage&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                            </span>&lt;p class="text-lg font-mono font-bold text-red-600"&gt;{results.actual}% ({results.slippage}%)&lt;/p&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                        </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                    </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">                </span>&lt;/div&gt;</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">            </span>);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>};</span></p>
+<p class="p2"><span class="s1"></span><br></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>const root = ReactDOM.createRoot(document.getElementById('root'));</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">        </span>root.render(&lt;Simulator /&gt;);</span></p>
+<p class="p1"><span class="s1"><span class="Apple-converted-space">    </span>&lt;/script&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/body&gt;</span></p>
+<p class="p1"><span class="s1">&lt;/html&gt;</span></p>
+</body>
+</html>
