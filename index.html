@@ -2,109 +2,216 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Futures Control Simulator</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Academic Risk Control Simulator | Futures Trading</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f9fafb; padding: 20px; display: flex; justify-content: center; }
-        .card { background: white; border: 1px solid #e5e7eb; border-radius: 8px; padding: 24px; width: 100%; max-width: 600px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1); }
-        h2 { text-align: center; color: #111827; margin-top: 0; }
-        .chart-area { height: 200px; border: 1px solid #eee; margin-bottom: 20px; position: relative; background: #fff; overflow: hidden; }
-        .line { position: absolute; height: 2px; background: #2563eb; transition: top 0.1s; }
-        .boundary { position: absolute; width: 100%; border-top: 1px dashed #999; left: 0; }
-        .controls { display: grid; grid-template-cols: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
-        label { font-size: 12px; font-weight: bold; color: #374151; display: block; margin-bottom: 4px; }
-        input { width: 100%; }
-        button { width: 100%; padding: 10px; background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; font-weight: bold; }
-        button:disabled { background: #9ca3af; }
-        .stats { display: grid; grid-template-cols: 1fr 1fr; gap: 10px; background: #f3f4f6; padding: 12px; border-radius: 6px; text-align: center; }
-        .stat-label { font-size: 10px; color: #6b7280; text-transform: uppercase; }
-        .stat-val { font-family: monospace; font-size: 16px; font-weight: bold; }
+        .grid-bg {
+            background-image: linear-gradient(#e5e7eb 1px, transparent 1px), linear-gradient(90deg, #e5e7eb 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+        input[type=range] { cursor: pointer; }
     </style>
 </head>
-<body>
-    <div class="card">
-        <h2>Risk Control Simulator</h2>
-        <div class="chart-area" id="canvas">
-            <div id="tp-line" class="boundary" style="top: 20%;"></div>
-            <div id="sl-line" class="boundary" style="top: 80%;"></div>
-            <div id="price-dot" style="position: absolute; width: 8px; height: 8px; background: black; border-radius: 50%; left: 0; top: 50%;"></div>
-        </div>
-        
-        <div class="controls">
-            <div>
-                <label>Volatility</label>
-                <input type="range" id="vol" min="1" max="10" value="5">
-                <label>Latency (ms)</label>
-                <input type="range" id="delay" min="0" max="2000" step="100" value="500">
-            </div>
-            <div style="text-align: right;">
-                <p id="status-text" style="font-size: 14px; font-weight: bold; color: #2563eb;">MONITORING</p>
-            </div>
+<body class="bg-slate-50 min-h-screen p-4 md:p-8">
+    <div class="max-w-4xl mx-auto bg-white rounded-xl shadow-2xl overflow-hidden border border-slate-200">
+        <div class="bg-slate-800 p-6 text-white text-center">
+            <h1 class="text-2xl font-bold tracking-tight">Figure 2.1: Closed-Loop Futures TP/SL Simulator</h1>
+            <p class="text-slate-400 text-sm mt-1">Academic Model for CDT503: Control Systems & AI</p>
         </div>
 
-        <button id="start-btn">START SIMULATION</button>
-        <button id="reset-btn" style="background:#6b7280; margin-top:10px;">RESET</button>
+        <div class="p-6">
+            <div class="relative h-64 w-full bg-white border-2 border-slate-200 rounded-lg overflow-hidden grid-bg mb-8" id="viewport">
+                <div id="tp-line" class="absolute w-full border-t-2 border-dashed border-blue-500 z-10">
+                    <span class="bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded ml-2">TP BOUNDARY</span>
+                </div>
+                <div id="sl-line" class="absolute w-full border-t-2 border-dashed border-slate-500 z-10">
+                    <span class="bg-slate-500 text-white text-[10px] px-2 py-0.5 rounded ml-2">SL BOUNDARY</span>
+                </div>
+                
+                <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
+                    <span class="text-slate-200 text-4xl font-black uppercase tracking-widest opacity-30">Deadband</span>
+                </div>
 
-        <div class="stats" style="margin-top: 20px;">
-            <div><div class="stat-label">Actual P&L</div><div id="actual-val" class="stat-val">0.00%</div></div>
-            <div><div class="stat-label">Slippage</div><div id="slip-val" class="stat-val" style="color:red;">0.00%</div></div>
+                <canvas id="priceCanvas" class="absolute inset-0 z-0"></canvas>
+                
+                <div id="price-dot" class="absolute w-4 h-4 bg-slate-900 rounded-full border-2 border-white shadow-lg z-20 transition-all duration-75" style="display:none;"></div>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8 bg-slate-50 p-6 rounded-lg border border-slate-200">
+                <div class="space-y-4">
+                    <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="settings-2" class="w-4 h-4"></i> Setpoints</h3>
+                    <div>
+                        <label class="flex justify-between text-sm mb-1"><span>Take-Profit (%)</span> <span id="tp-val" class="font-mono text-blue-600">5.0%</span></label>
+                        <input type="range" id="tp-input" min="1" max="10" step="0.5" value="5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-sm mb-1"><span>Stop-Loss (%)</span> <span id="sl-val" class="font-mono text-slate-600">-3.0%</span></label>
+                        <input type="range" id="sl-input" min="-10" max="-1" step="0.5" value="-3" class="w-full h-2 bg-slate-200 rounded-lg appearance-none">
+                    </div>
+                </div>
+
+                <div class="space-y-4">
+                    <h3 class="font-bold text-slate-700 flex items-center gap-2"><i data-lucide="zap" class="w-4 h-4"></i> Environment & System</h3>
+                    <div>
+                        <label class="flex justify-between text-sm mb-1"><span>Volatility (Noise)</span> <span id="vol-val" class="font-mono text-slate-600">0.5</span></label>
+                        <input type="range" id="vol-input" min="0.1" max="1.5" step="0.1" value="0.5" class="w-full h-2 bg-slate-200 rounded-lg appearance-none">
+                    </div>
+                    <div>
+                        <label class="flex justify-between text-sm mb-1"><span>System Latency (ms)</span> <span id="lat-val" class="font-mono text-red-600">500ms</span></label>
+                        <input type="range" id="lat-input" min="0" max="2000" step="100" value="500" class="w-full h-2 bg-slate-200 rounded-lg appearance-none">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex gap-4 mb-8">
+                <button id="start-btn" class="flex-1 bg-slate-900 text-white py-3 rounded-lg font-bold hover:bg-black transition-colors flex items-center justify-center gap-2">
+                    <i data-lucide="play" class="w-5 h-5"></i> START SIMULATION
+                </button>
+                <button id="reset-btn" class="px-6 bg-white border border-slate-300 text-slate-600 py-3 rounded-lg font-bold hover:bg-slate-100 transition-colors">
+                    RESET
+                </button>
+            </div>
+
+            <div class="grid grid-cols-3 gap-4 border-t border-slate-100 pt-8 text-center">
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Loop Status</p>
+                    <p id="status-display" class="text-sm font-black text-slate-800">IDLE</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Target Price</p>
+                    <p id="target-display" class="text-sm font-black text-slate-800">--</p>
+                </div>
+                <div>
+                    <p class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-1">Execution / Slippage</p>
+                    <p id="actual-display" class="text-sm font-black text-red-600">--</p>
+                </div>
+            </div>
         </div>
     </div>
 
     <script>
+        // Initialize Icons
+        lucide.createIcons();
+
+        // Elements
+        const canvas = document.getElementById('priceCanvas');
+        const ctx = canvas.getContext('2d');
+        const tpInput = document.getElementById('tp-input');
+        const slInput = document.getElementById('sl-input');
+        const volInput = document.getElementById('vol-input');
+        const latInput = document.getElementById('lat-input');
+        const startBtn = document.getElementById('start-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const dot = document.getElementById('price-dot');
+
+        // State Variables
+        let isRunning = false;
         let price = 0;
         let time = 0;
-        let isRunning = false;
-        let status = 'MONITORING';
-        let timer;
+        let path = [];
+        let systemStatus = 'IDLE';
 
-        const canvas = document.getElementById('canvas');
-        const dot = document.getElementById('price-dot');
-        const startBtn = document.getElementById('start-btn');
-        const statusText = document.getElementById('status-text');
+        // Resize Canvas
+        function resizeCanvas() {
+            canvas.width = canvas.offsetWidth;
+            canvas.height = canvas.offsetHeight;
+        }
+        window.onresize = resizeCanvas;
+        resizeCanvas();
 
-        function update() {
+        // Mapping helper (P&L % to Y Coordinate)
+        function getY(p) {
+            // Center is 0%, range is +/- 12%
+            const range = 12;
+            const centerY = canvas.height / 2;
+            return centerY - (p * (canvas.height / (range * 2)));
+        }
+
+        function updateUI() {
+            document.getElementById('tp-line').style.top = getY(tpInput.value) + 'px';
+            document.getElementById('sl-line').style.top = getY(slInput.value) + 'px';
+            document.getElementById('tp-val').innerText = parseFloat(tpInput.value).toFixed(1) + '%';
+            document.getElementById('sl-val').innerText = parseFloat(slInput.value).toFixed(1) + '%';
+            document.getElementById('vol-val').innerText = volInput.value;
+            document.getElementById('lat-val').innerText = latInput.value + 'ms';
+        }
+
+        [tpInput, slInput, volInput, latInput].forEach(el => el.oninput = updateUI);
+        updateUI();
+
+        function startSimulation() {
+            isRunning = true;
+            price = 0;
+            time = 0;
+            path = [{x: 0, y: 0}];
+            systemStatus = 'MONITORING';
+            document.getElementById('status-display').innerText = 'MONITORING';
+            document.getElementById('target-display').innerText = '--';
+            document.getElementById('actual-display').innerText = '--';
+            dot.style.display = 'block';
+            startBtn.disabled = true;
+            
+            animate();
+        }
+
+        function animate() {
             if (!isRunning) return;
-            
-            const vol = document.getElementById('vol').value / 10;
-            const delay = document.getElementById('delay').value;
-            
+
+            // 1. Calculate next price
+            const vol = parseFloat(volInput.value);
             price += (Math.random() - 0.5) * vol;
             time += 2;
-            
-            // UI 更新
-            dot.style.left = time + 'px';
-            dot.style.top = (100 - (price + 50)) + '%';
+            path.push({x: time, y: price});
 
-            if (status === 'MONITORING') {
-                if (price >= 30 || price <= -30) {
-                    status = 'TRIGGERED';
-                    statusText.innerText = 'TRIGGERED';
-                    const target = price >= 30 ? 30 : -30;
+            // 2. Logic for Control Loop
+            if (systemStatus === 'MONITORING') {
+                if (price >= tpInput.value || price <= slInput.value) {
+                    const target = price >= tpInput.value ? tpInput.value : slInput.value;
+                    systemStatus = 'TRIGGERED';
+                    document.getElementById('status-display').innerText = 'TRIGGERED';
+                    document.getElementById('target-display').innerText = parseFloat(target).toFixed(2) + '%';
                     
+                    // Simulate Latency
                     setTimeout(() => {
-                        status = 'LIQUIDATED';
-                        statusText.innerText = 'LIQUIDATED';
+                        systemStatus = 'LIQUIDATED';
+                        document.getElementById('status-display').innerText = 'LIQUIDATED';
+                        const actualPrice = price;
+                        const slippage = Math.abs(actualPrice - target).toFixed(2);
+                        document.getElementById('actual-display').innerText = actualPrice.toFixed(2) + '% (Slip: ' + slippage + '%)';
                         isRunning = false;
-                        const slip = Math.abs(price - target).toFixed(2);
-                        document.getElementById('actual-val').innerText = price.toFixed(2) + '%';
-                        document.getElementById('slip-val').innerText = slip + '%';
-                    }, delay);
+                        startBtn.disabled = false;
+                    }, latInput.value);
                 }
             }
 
-            if (time > canvas.offsetWidth) isRunning = false;
-            if (isRunning) requestAnimationFrame(update);
+            // 3. Draw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.beginPath();
+            ctx.strokeStyle = '#1e293b';
+            ctx.lineWidth = 2;
+            path.forEach((p, index) => {
+                if (index === 0) ctx.moveTo(p.x, getY(p.y));
+                else ctx.lineTo(p.x, getY(p.y));
+            });
+            ctx.stroke();
+
+            // Move Dot
+            dot.style.left = (time - 8) + 'px';
+            dot.style.top = (getY(price) - 8) + 'px';
+
+            if (time < canvas.width && (systemStatus !== 'LIQUIDATED')) {
+                requestAnimationFrame(animate);
+            } else {
+                isRunning = false;
+                startBtn.disabled = false;
+            }
         }
 
-        startBtn.onclick = () => {
-            price = 0; time = 0; status = 'MONITORING'; isRunning = true;
-            statusText.innerText = 'MONITORING';
-            document.getElementById('actual-val').innerText = '0.00%';
-            document.getElementById('slip-val').innerText = '0.00%';
-            update();
-        };
+        startBtn.onclick = startSimulation;
+        resetBtn.onclick = () => location.reload();
 
-        document.getElementById('reset-btn').onclick = () => location.reload();
     </script>
 </body>
 </html>
