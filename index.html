@@ -3,18 +3,151 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Simulator App</title>
-    <script src="https://unpkg.com/react@18/umd/react.development.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.development.js" crossorigin></script>
+    <title>Futures Risk Control Simulator</title>
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <link href="https://cdn.tailwindcss.com" rel="stylesheet">
-    <script src="https://unpkg.com/recharts/umd/Recharts.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/recharts/umd/Recharts.js"></script>
 </head>
-<body>
+<body class="bg-gray-50 font-sans">
     <div id="root"></div>
+
     <script type="text/babel">
-        // Existing Simulator component logic here
-        // Ensure no HTML escapes and maintain JSX structure
+        const { useState, useEffect, useRef } = React;
+        const { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ReferenceLine, ResponsiveContainer } = Recharts;
+
+        const Simulator = () => {
+            const [data, setData] = useState([{ time: 0, price: 0 }]);
+            const [params, setParams] = useState({ tp: 5, sl: -3, vol: 0.5, delay: 500 });
+            const [status, setStatus] = useState('MONITORING'); // MONITORING, TRIGGERED, LIQUIDATED
+            const [results, setResults] = useState({ target: 0, actual: 0, slippage: 0 });
+            const [isRunning, setIsRunning] = useState(false);
+            
+            const timerRef = useRef(null);
+            const statusRef = useRef('MONITORING');
+
+            const resetSim = () => {
+                setIsRunning(false);
+                setData([{ time: 0, price: 0 }]);
+                setStatus('MONITORING');
+                statusRef.current = 'MONITORING';
+                setResults({ target: 0, actual: 0, slippage: 0 });
+                if (timerRef.current) clearInterval(timerRef.current);
+            };
+
+            const runStep = () => {
+                setData(prev => {
+                    const last = prev[prev.length - 1];
+                    if (statusRef.current === 'LIQUIDATED' || prev.length > 100) {
+                        clearInterval(timerRef.current);
+                        setIsRunning(false);
+                        return prev;
+                    }
+
+                    // 模拟价格随机波动 (Brownian Motion)
+                    const change = (Math.random() - 0.5) * params.vol;
+                    const nextPrice = last.price + change;
+                    const nextTime = last.time + 1;
+
+                    // 检测边界触发
+                    if (statusRef.current === 'MONITORING') {
+                        if (nextPrice >= params.tp || nextPrice <= params.sl) {
+                            const target = nextPrice >= params.tp ? params.tp : params.sl;
+                            statusRef.current = 'TRIGGERED';
+                            setStatus('TRIGGERED');
+                            
+                            // 模拟时延
+                            setTimeout(() => {
+                                statusRef.current = 'LIQUIDATED';
+                                setStatus('LIQUIDATED');
+                            }, params.delay);
+                            
+                            setResults(res => ({ ...res, target: target.toFixed(2) }));
+                        }
+                    }
+
+                    if (statusRef.current === 'LIQUIDATED' && results.actual === 0) {
+                        setResults(res => ({ 
+                            ...res, 
+                            actual: nextPrice.toFixed(2),
+                            slippage: Math.abs(nextPrice - res.target).toFixed(2)
+                        }));
+                    }
+
+                    return [...prev, { time: nextTime, price: nextPrice }];
+                });
+            };
+
+            const startSim = () => {
+                resetSim();
+                setIsRunning(true);
+                timerRef.current = setInterval(runStep, 100);
+            };
+
+            return (
+                <div class="max-w-4xl mx-auto p-6 bg-white shadow-lg rounded-lg border border-gray-200 mt-10">
+                    <h1 class="text-2xl font-bold text-center mb-6 text-gray-800">Figure 2.1: Futures Risk Control Loop Simulator</h1>
+                    
+                    {/* 图表展示区 */}
+                    <div class="h-64 w-full mb-8 bg-gray-100 rounded p-2">
+                        <ResponsiveContainer width="100%" height="100%">
+                            <LineChart data={data}>
+                                <CartesianGrid strokeDasharray="3 3" />
+                                <XAxis dataKey="time" hide />
+                                <YAxis domain={['auto', 'auto']} label={{ value: 'P&L %', angle: -90, position: 'insideLeft' }} />
+                                <Tooltip />
+                                <ReferenceLine y={params.tp} label="TP" stroke="#2563eb" strokeDasharray="5 5" />
+                                <ReferenceLine y={params.sl} label="SL" stroke="#4b5563" strokeDasharray="5 5" />
+                                <Line type="monotone" dataKey="price" stroke="#1f2937" dot={false} strokeWidth={2} isAnimationActive={false} />
+                            </LineChart>
+                        </ResponsiveContainer>
+                    </div>
+
+                    {/* 参数控制区 */}
+                    <div class="grid grid-cols-2 gap-6 mb-8">
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Take-Profit Level: {params.tp}%</label>
+                            <input type="range" min="1" max="10" step="0.5" value={params.tp} onChange={e => setParams({...params, tp: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                            
+                            <label class="block text-sm font-semibold text-gray-700 mt-4">Stop-Loss Level: {params.sl}%</label>
+                            <input type="range" min="-10" max="-1" step="0.5" value={params.sl} onChange={e => setParams({...params, sl: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-semibold text-gray-700">Volatility (Noise): {params.vol}</label>
+                            <input type="range" min="0.1" max="2" step="0.1" value={params.vol} onChange={e => setParams({...params, vol: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                            
+                            <label class="block text-sm font-semibold text-gray-700 mt-4">System Latency: {params.delay}ms</label>
+                            <input type="range" min="0" max="2000" step="100" value={params.delay} onChange={e => setParams({...params, delay: parseFloat(e.target.value)})} class="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer" />
+                        </div>
+                    </div>
+
+                    <div class="flex gap-4 justify-center mb-8">
+                        <button onClick={startSim} disabled={isRunning} class="px-6 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700 disabled:bg-gray-400">START SIMULATION</button>
+                        <button onClick={resetSim} class="px-6 py-2 bg-gray-600 text-white font-bold rounded hover:bg-gray-700">RESET</button>
+                    </div>
+
+                    {/* 结果分析区 */}
+                    <div class="bg-blue-50 p-4 rounded-lg grid grid-cols-3 text-center border border-blue-100">
+                        <div>
+                            <p class="text-xs text-blue-600 font-bold uppercase">Status</p>
+                            <p class="text-lg font-mono font-bold text-gray-800">{status}</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-blue-600 font-bold uppercase">Target Price</p>
+                            <p class="text-lg font-mono font-bold text-gray-800">{results.target}%</p>
+                        </div>
+                        <div>
+                            <p class="text-xs text-blue-600 font-bold uppercase">Actual Fill / Slippage</p>
+                            <p class="text-lg font-mono font-bold text-red-600">{results.actual}% ({results.slippage}%)</p>
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<Simulator />);
     </script>
 </body>
 </html>
